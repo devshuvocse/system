@@ -1,6 +1,8 @@
 # Enterprise Network Infrastructure Project
 
 This project demonstrates a **redundant enterprise network architecture** with routing, switching, firewall security, server infrastructure, and website hosting based on the provided topology diagram.
+## 📷 Network Diagram
+![Screenshot of the UI](Project_Image_DPI.png)
 
 ---
 
@@ -100,8 +102,6 @@ This project demonstrates a **redundant enterprise network architecture** with r
 
 ---
 
-## 📷 Network Diagram
-![Screenshot of the UI](Project_Image_DPI.png)
 > Refer to the provided topology diagram for physical and logical connectivity.
 
 ---
