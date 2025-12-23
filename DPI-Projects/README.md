@@ -101,7 +101,7 @@ This project demonstrates a **redundant enterprise network architecture** with r
 ---
 
 ## 📷 Network Diagram
-
+![Screenshot of the UI](Project_Image_DPI.png)
 > Refer to the provided topology diagram for physical and logical connectivity.
 
 ---
