@@ -1,265 +1,37 @@
 # ATAR3050S Full Configuration Guide
 
+Complete network configuration for the ATAR3050S router with VLANs, HSRP, OSPF, VTP, ACLs, DHCP, and VPN connectivity.
+
 ## Network Overview
-- **VLAN 99**: Management (192.168.99.0/24) - Gateway: 192.168.99.1
-- **VLAN 100**: Access Point & PC1 (172.16.0.0/20)
-- **VLAN 150**: Internal Network (192.168.150.0/29)
-- **VLAN 170**: DNS/Services (192.168.100.0/29)
-- **VLAN 200**: Servers (192.168.0.8/29)
-- **Cloud Networks**: Cloud1 & Cloud2 via VPN
+
+| VLAN | Name | Subnet | Gateway |
+|------|------|--------|---------|
+| 99 | Management | 192.168.99.0/24 | 192.168.99.1 |
+| 100 | Access Point & Users | 172.16.0.0/20 | 172.16.0.1 |
+| 150 | Internal Network | 192.168.150.0/29 | 192.168.150.1 |
+| 170 | DNS/Services | 192.168.100.0/29 | 192.168.100.1 |
+| 200 | Servers | 192.168.0.0/29 | 192.168.0.1 |
+
+**Cloud Networks:** Cloud1 & Cloud2 via IPSec VPN tunnels
 
 ---
 
 ## Configuration Steps
 
-### 1. Basic Router Configuration
-```
-configure terminal
-hostname ATAR3050S1
-ip domain-name dpi.local
-ip name-server 192.168.100.2
-enable secret cisco
-line vty 0 4
- password cisco
- login
- exec-timeout 15 0
-exit
-```
+### Part 1: Basic Router Configuration
 
-### 2. Interface Configuration
-
-#### Management Interface (VLAN 99)
-```
-interface Gi0/0
- ip address 192.168.99.11 255.255.255.0
- description Management Interface
- no shutdown
-exit
-```
-
-#### VLAN Trunk Ports (To Core & Distribution Switches)
-```
-interface Gi0/1
- description Trunk to CORE-SW
- switchport mode trunk
- switchport trunk allowed vlan 99,100,150,170,200
- no shutdown
-exit
-
-interface Gi0/2
- description Trunk to CORESW-BACKUP
- switchport mode trunk
- switchport trunk allowed vlan 99,100,150,170,200
- no shutdown
-exit
-```
-
-#### Access Port Configuration
-```
-interface Gi0/3
- description VLAN 100 - User Access
- switchport mode access
- switchport access vlan 100
- no shutdown
-exit
-
-interface Gi0/4
- description VLAN 150 - Server Access
- switchport mode access
- switchport access vlan 150
- no shutdown
-exit
-
-interface Gi0/5
- description VLAN 170 - DNS/Services
- switchport mode access
- switchport access vlan 170
- no shutdown
-exit
-
-interface Gi0/6
- description VLAN 200 - Servers
- switchport mode access
- switchport access vlan 200
- no shutdown
-exit
-```
-
-### 3. VLAN Configuration
-```
-vlan 99
- name Management
-exit
-
-vlan 100
- name AccessPoint
-exit
-
-vlan 150
- name Internal
-exit
-
-vlan 170
- name Services
-exit
-
-vlan 200
- name Servers
-exit
-```
-
-### 4. SVI (Switched Virtual Interface) Configuration
-```
-interface vlan 99
- ip address 192.168.99.11 255.255.255.0
- description Management VLAN
- no shutdown
-exit
-
-interface vlan 100
- ip address 172.16.0.1 255.255.240.0
- description Access VLAN
- no shutdown
-exit
-
-interface vlan 150
- ip address 192.168.150.1 255.255.255.248
- description Internal VLAN
- no shutdown
-exit
-
-interface vlan 170
- ip address 192.168.100.1 255.255.255.248
- description Services VLAN
- no shutdown
-exit
-
-interface vlan 200
- ip address 192.168.0.1 255.255.255.248
- description Servers VLAN
- no shutdown
-exit
-```
-
-### 5. Routing Configuration (OSPF)
-```
-router ospf 1
- router-id 192.168.99.11
- network 192.168.99.0 0.0.0.255 area 0
- network 172.16.0.0 0.0.15.255 area 0
- network 192.168.150.0 0.0.0.7 area 0
- network 192.168.100.0 0.0.0.7 area 0
- network 192.168.0.0 0.0.0.7 area 0
- default-information originate
-exit
-```
-
-### 6. HSRP Configuration (Virtual Gateway: 172.17.0.1/29)
-```
-interface vlan 150
- standby 1 ip 172.17.0.1
- standby 1 priority 110
- standby 1 preempt
- standby 1 timers 3 10
-exit
-```
-
-### 7. VTP Server Configuration
-```
-vtp mode server
-vtp domain dpi.local
-vtp password dpi
-vtp version 2
-exit
-```
-
-### 8. Access Port Security
-```
-interface Gi0/3
- switchport port-security
- switchport port-security maximum 2
- switchport port-security violation shutdown
- switchport port-security mac-address sticky
-exit
-
-interface Gi0/4
- switchport port-security
- switchport port-security maximum 1
- switchport port-security violation restrict
-exit
-```
-
-### 9. ACL Configuration (Basic Security)
-```
-ip access-list standard MGMT_ACCESS
- permit 192.168.99.0 0.0.0.255
- permit 192.168.150.0 0.0.0.7
-exit
-
-ip access-list extended VLAN100_FILTER
- permit ip 172.16.0.0 0.0.15.255 192.168.100.0 0.0.0.7
- permit ip 172.16.0.0 0.0.15.255 192.168.0.0 0.0.0.7
- deny ip any any
-exit
-
-line vty 0 4
- access-class MGMT_ACCESS in
-exit
-```
-
-### 10. Save Configuration
-```
-end
-write memory
-copy running-config startup-config
-```
-
----
-
-## Verification Commands
-```
-show vlan brief
-show interfaces trunk
-show standby brief
-show vtp status
-show access-lists
-show ip route
-show running-config
-```
-
----
-
-## Notes
-- **HSRP Virtual Gateway**: 172.17.0.1/29 for VLAN 150
-- **Secondary Gateway**: 172.17.0.129 (on R2) for redundancy
-- **DNS Server**: 192.168.100.2 (VLAN 170)
-- **Management**: Via VLAN 99 (192.168.99.11)
-
-# ATAR3050S Full Configuration - Complete Setup
-
-## Network Overview
-- **VLAN 99**: Management (192.168.99.0/24) - Gateway: 192.168.99.1
-- **VLAN 100**: Access Point & PC1 (172.16.0.0/20)
-- **VLAN 150**: Internal Network (192.168.150.0/29)
-- **VLAN 170**: DNS/Services (192.168.100.0/29)
-- **VLAN 200**: Servers (192.168.0.8/29)
-- **Cloud Networks**: Cloud1 & Cloud2 via VPN
-
----
-
-## PART 1: Basic Router Configuration
-
-```
+```cisco
 configure terminal
 hostname ATAR3050S1
 ip domain-name dpi.local
 ip name-server 192.168.100.2
 enable secret cisco123
-!
+
 line vty 0 4
  password cisco123
  login
  exec-timeout 15 0
+
 line console 0
  password cisco123
  login
@@ -267,11 +39,9 @@ line console 0
 exit
 ```
 
----
+### Part 2: Interface & VLAN Configuration
 
-## PART 2: Interface & VLAN Configuration
-
-```
+```cisco
 ! Management Interface (VLAN 99)
 interface Gi0/0
  ip address 192.168.99.11 255.255.255.0
@@ -283,15 +53,19 @@ exit
 vlan 99
  name Management
 exit
+
 vlan 100
  name AccessPoint_Users
 exit
+
 vlan 150
  name Internal_Network
 exit
+
 vlan 170
  name DNS_Services
 exit
+
 vlan 200
  name Servers
 exit
@@ -328,11 +102,9 @@ interface vlan 200
 exit
 ```
 
----
+### Part 3: Trunk Port Configuration (To Switches)
 
-## PART 3: Trunk Port Configuration (To Switches)
-
-```
+```cisco
 ! Trunk to CORE-SW
 interface Gi0/1
  description Trunk-to-CORE-SW
@@ -364,12 +136,10 @@ interface Gi0/3
 exit
 ```
 
----
+### Part 4: HSRP Configuration (High Availability)
 
-## PART 4: HSRP Configuration (High Availability)
-
-```
-! HSRP for VLAN 150 (Primary on R1 = ATAR3050S1)
+```cisco
+! HSRP for VLAN 150 (Primary on ATAR3050S1)
 interface vlan 150
  ip address 192.168.150.2 255.255.255.248
  standby version 2
@@ -410,11 +180,9 @@ interface vlan 170
 exit
 ```
 
----
+### Part 5: VTP Configuration
 
-## PART 5: VTP Configuration
-
-```
+```cisco
 vtp mode server
 vtp domain dpi.local
 vtp password dpi123
@@ -423,11 +191,9 @@ vtp pruning enable
 exit
 ```
 
----
+### Part 6: Routing Protocol (OSPF)
 
-## PART 6: Routing Protocol (OSPF)
-
-```
+```cisco
 router ospf 1
  router-id 192.168.99.11
  auto-cost reference-bandwidth 10000
@@ -444,11 +210,9 @@ router ospf 1
 exit
 ```
 
----
+### Part 7: Port Security & Access Control
 
-## PART 7: Port Security & Access Control
-
-```
+```cisco
 ! Port Security on User Access
 interface vlan 100
  switchport port-security
@@ -473,11 +237,9 @@ interface vlan 99
 exit
 ```
 
----
+### Part 8: ACL Configuration (Access Control Lists)
 
-## PART 8: ACL Configuration (Access Control Lists)
-
-```
+```cisco
 ! Standard ACL for Management
 ip access-list standard MGMT_ACCESS
  permit 192.168.99.0 0.0.0.255
@@ -525,11 +287,9 @@ interface vlan 170
 exit
 ```
 
----
+### Part 9: NAT/PAT Configuration (For Cloud Connectivity)
 
-## PART 9: NAT/PAT Configuration (For Cloud Connectivity)
-
-```
+```cisco
 ! Define Inside Interface
 ip nat inside source list 1 interface vlan 99 overload
 
@@ -563,11 +323,9 @@ interface vlan 200
 exit
 ```
 
----
+### Part 10: DHCP Configuration (For Dynamic IPs)
 
-## PART 10: DHCP Configuration (For Dynamic IPs)
-
-```
+```cisco
 ! Exclude Management IPs from DHCP
 ip dhcp excluded-address 192.168.99.1 192.168.99.50
 ip dhcp excluded-address 172.16.0.1 172.16.0.100
@@ -593,7 +351,7 @@ ip dhcp pool VLAN150_POOL
  lease 1 0
 exit
 
-! DHCP Pool for Server VLAN (typically static)
+! DHCP Pool for Server VLAN
 ip dhcp pool VLAN200_POOL
  network 192.168.0.0 255.255.255.248
  default-router 192.168.0.1
@@ -612,11 +370,9 @@ ip dhcp pool VLAN170_POOL
 exit
 ```
 
----
+### Part 11: VPN/IPSec Configuration (For Cloud1 & Cloud2)
 
-## PART 11: VPN/IPSec Configuration (For Cloud1 & Cloud2)
-
-```
+```cisco
 ! IKEv2 Phase 1 - Encryption
 crypto ikev2 proposal CLOUD_PROPOSAL
  encryption aes-cbc-256
@@ -659,7 +415,7 @@ crypto ipsec policy CLOUD_IPSEC 1
 exit
 
 ! Static Routes for VPN
-ip route 0.0.0.0 0.0.0.0 192.168.99.1 (adjust based on actual ISP gateway)
+ip route 0.0.0.0 0.0.0.0 192.168.99.1
 
 ! Tunnel Interface to Cloud1
 interface Tunnel 1
@@ -670,7 +426,7 @@ interface Tunnel 1
  tunnel destination CLOUD1_PUBLIC_IP
  tunnel mode ipsec ipv4
  tunnel protection ipsec profile CLOUD_PROFILE
- exit
+exit
 
 ! Tunnel Interface to Cloud2
 interface Tunnel 2
@@ -681,18 +437,16 @@ interface Tunnel 2
  tunnel destination CLOUD2_PUBLIC_IP
  tunnel mode ipsec ipv4
  tunnel protection ipsec profile CLOUD_PROFILE
- exit
+exit
 
 ! Routes via Tunnels
-ip route 10.10.0.0 255.255.0.0 10.0.0.1 (Cloud1 Route)
-ip route 10.20.0.0 255.255.0.0 10.0.1.1 (Cloud2 Route)
+ip route 10.10.0.0 255.255.0.0 10.0.0.1
+ip route 10.20.0.0 255.255.0.0 10.0.1.1
 ```
 
----
+### Part 12: DNS & NTP Configuration
 
-## PART 12: DNS & NTP Configuration
-
-```
+```cisco
 ! DNS Configuration
 ip domain-name dpi.local
 ip name-server 192.168.100.2
@@ -703,11 +457,9 @@ ntp source 192.168.99.11
 clock timezone UTC 0
 ```
 
----
+### Part 13: Logging & Monitoring
 
-## PART 13: Logging & Monitoring
-
-```
+```cisco
 ! Syslog Configuration
 logging host 192.168.0.4
 logging trap informational
@@ -724,11 +476,9 @@ logging console warnings
 logging synchronous level all
 ```
 
----
+### Part 14: Save & Verification
 
-## PART 14: Save & Verification
-
-```
+```cisco
 end
 write memory
 copy running-config startup-config
@@ -738,7 +488,9 @@ copy running-config startup-config
 
 ## Verification Commands
 
-```
+Verify the configuration with these commands:
+
+```cisco
 show vlan brief
 show interfaces trunk
 show standby brief
@@ -756,11 +508,29 @@ ping 192.168.0.2
 
 ---
 
-## Quick Command Summary
-```
-configure terminal
-! Paste all above configurations
-! Verify with commands above
-end
-write memory
-```
+## Key Configuration Notes
+
+- **HSRP Virtual Gateway (VLAN 150):** 192.168.150.1 with secondary gateway on R2 for redundancy
+- **Primary HSRP Priority:** 110 (adjust on backup router to 100 or lower)
+- **DNS Server:** 192.168.100.2 (VLAN 170)
+- **Management Access:** Via VLAN 99 (192.168.99.11)
+- **VPN Pre-Shared Key:** `cisco123VPN` (change in production)
+- **VTP Domain:** `dpi.local` with VTP version 2 enabled
+
+---
+
+## Implementation Tips
+
+1. **Test configuration step-by-step** to identify any issues early
+2. **Verify VLAN connectivity** before implementing ACLs
+3. **Update tunnel destinations** with actual Cloud public IP addresses
+4. **Change default credentials** before production deployment
+5. **Enable logging** for troubleshooting and monitoring
+6. **Test HSRP failover** to ensure high availability works correctly
+7. **Document all customizations** for future reference
+
+---
+
+## License
+
+This configuration guide is provided as-is for reference purposes. Modify as needed for your specific network requirements.
