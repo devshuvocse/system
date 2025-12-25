@@ -1434,8 +1434,8 @@ Test-NetConnection -ComputerName 192.168.0.10 -Port 80  # Test connectivity
 
 *Enterprise Networking & Server Infrastructure Project*
 
-[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/devshuvocse)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/ahashanul-haque-shuvo)
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://wwww.github.com/devshuvocse)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/ahashanul-haque-shuvo)
 
 ---
 
