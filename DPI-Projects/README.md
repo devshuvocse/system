@@ -101,8 +101,7 @@ This project demonstrates a **redundant enterprise network architecture** with r
 - Scalable enterprise-ready design  
 
 ---
-
-> Refer to the provided topology diagram for physical and logical connectivity.
+##Configuration
 
 ---
 
