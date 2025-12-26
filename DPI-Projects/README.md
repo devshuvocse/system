@@ -199,11 +199,11 @@ VLAN 170 192.168.100.2/29"]
 </td>
 </tr>
 </table>
-
-```markdown
 # **FULL NETWORK CONFIGURATION README.md**
 > Topology + addressing + VLAN/VTP + trunks/EtherChannel + HSRP + OSPF + NAT/PAT + DHCP/DNS/AD/DC + DMZ services  
 > Built to match the diagram exactly (names highlighted everywhere).
+
+
 
 ---
 
