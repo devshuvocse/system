@@ -510,7 +510,7 @@ ip routing
 !
 ! Device management IP on VLAN99
 interface vlan 99
- description **MGMT**
+ description MGMT
  ip address 192.168.99.12 255.255.255.0
  no shutdown
 
@@ -540,14 +540,14 @@ interface vlan 200
 !
 ! EtherChannel to CORE-SW1 (example f0/0 + f1/3)
 interface range f0/0, f1/3
- description **TO-CORE-SW1-LACP**
+ description TO-CORE-SW1-LACP
  switchport trunk encapsulation dot1q
  switchport mode trunk
  switchport trunk allowed vlan 99,100,150,170,200
  channel-group 1 mode active
 
 interface port-channel 1
- description **CORE-INTERLINK**
+ description CORE-INTERLINK
  switchport trunk encapsulation dot1q
  switchport mode trunk
  switchport trunk allowed vlan 99,100,150,170,200
@@ -555,13 +555,13 @@ interface port-channel 1
 !
 ! Trunks to access
 interface f1/6
- description **TO-ACC-SW**
+ description TO-ACC-SW
  switchport trunk encapsulation dot1q
  switchport mode trunk
  switchport trunk allowed vlan 99,100,150,170,200
 
 interface f1/8
- description **TO-ACC-SW1**
+ description TO-ACC-SW1
  switchport trunk encapsulation dot1q
  switchport mode trunk
  switchport trunk allowed vlan 99,100,150,170,200
@@ -569,7 +569,7 @@ interface f1/8
 !
 ! Transit to R2 (routed port)
 interface f0/1
- description **TO-R2-TRANSIT**
+ description TO-R2-TRANSIT
  no switchport
  ip address 172.17.0.5 255.255.255.248
  no shutdown
@@ -919,7 +919,7 @@ Run these tests:
 
 ---
 
-** 📝 Author **
+## 📝 Author
 
 <div align="center">
 
