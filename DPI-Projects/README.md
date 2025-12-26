@@ -919,7 +919,7 @@ Run these tests:
 
 ---
 
-## ** 📝 Author **
+** 📝 Author **
 
 <div align="center">
 
