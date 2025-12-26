@@ -11,9 +11,9 @@
 **Enterprise lab topology with dual-edge connectivity, redundant core, VLAN segmentation, DMZ services, and centralized identity/DNS**
 
 [Topology](#-topology-overview) •
-[IP%20Plan](#-ip-addressing--vlan-plan) •
+[IP Plan](#-ip-addressing--vlan-plan) •
 [Switching](#-switching--vtp) •
-[Routing%20%26%20NAT](#-routing-hsrp-ospf--nat) •
+[Routing & NAT](#-routing-hsrp-ospf--nat) •
 [Servers](#-server--service-setup) •
 [Validation](#-verification--troubleshooting)
 
