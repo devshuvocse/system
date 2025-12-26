@@ -1,5 +1,6 @@
 # Enterprise Network Infrastructure Project
 
+```html
 <div align="center">
 
 ![Network Infrastructure](https://img.shields.io/badge/Network-Infrastructure-blue?style=for-the-badge&logo=cisco)
@@ -16,6 +17,7 @@
 [Troubleshooting](#-troubleshooting-guide)
 
 ---
+```
 
 </div>
 
