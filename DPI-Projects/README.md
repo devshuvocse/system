@@ -1,536 +1,948 @@
-# ATAR3050S Full Configuration Guide
+# Enterprise Network Infrastructure Project
 
-Complete network configuration for the ATAR3050S router with VLANs, HSRP, OSPF, VTP, ACLs, DHCP, and VPN connectivity.
+<div align="center">
 
-## Network Overview
+![Network Infrastructure](https://img.shields.io/badge/Network-Infrastructure-blue?style=for-the-badge&logo=cisco)
+![Status](https://img.shields.io/badge/Status-Production%20Ready-success?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
+![Cisco](https://img.shields.io/badge/Cisco-IOS-1BA0D7?style=for-the-badge&logo=cisco)
+![Windows Server](https://img.shields.io/badge/Windows-Server-0078D6?style=for-the-badge&logo=windows)
 
-| VLAN | Name | Subnet | Gateway |
-|------|------|--------|---------|
-| 99 | Management | 192.168.99.0/24 | 192.168.99.1 |
-| 100 | Access Point & Users | 172.16.0.0/20 | 172.16.0.1 |
-| 150 | Internal Network | 192.168.150.0/29 | 192.168.150.1 |
-| 170 | DNS/Services | 192.168.100.0/29 | 192.168.100.1 |
-| 200 | Servers | 192.168.0.0/29 | 192.168.0.1 |
+**A comprehensive enterprise-grade network architecture featuring redundancy, security, and scalability**
 
-**Cloud Networks:** Cloud1 & Cloud2 via IPSec VPN tunnels
+[Overview](#-network-topology-overview) •
+[Configuration](#-configuration-guide) •
+[Deployment](#-deployment-checklist) •
+[Troubleshooting](#-troubleshooting-guide)
 
 ---
 
-## Configuration Steps
+</div>
 
-### Part 1: Basic Router Configuration
+## 📷 Network Diagram
 
-```cisco
-configure terminal
-hostname ATAR3050S1
-ip domain-name dpi.local
-ip name-server 192.168.100.2
-enable secret cisco123
+<div align="center">
 
-line vty 0 4
- password cisco123
- login
- exec-timeout 15 0
+![Network Topology](Project_Image_DPI1.4.png)
 
-line console 0
- password cisco123
- login
- exec-timeout 0 0
-exit
+*Enterprise Network Topology with Dual WAN, HSRP, and Segmented VLANs*
+
+</div>
+
+---
+## 📌 Network Topology Overview
+
+<table>
+<tr>
+<td width="50%">
+
+### 🌐 Core Features
+- ✅ Dual Internet/Cloud connectivity
+- ✅ Redundant routers using **HSRP**
+- ✅ Core, Distribution, and Access layers
+- ✅ Redundant firewalls with failover
+- ✅ EtherChannel for high-speed FTP traffic
+
+</td>
+<td width="50%">
+
+```mermaid
+flowchart TB
+  %% =========================
+  %% Notes / Legend (as text)
+  %% =========================
+  N1["VLAN 99 – Management
+Network: 192.168.99.0/24
+Gateway: 192.168.99.1
+
+Router R1 Mgmt IP: 192.168.99.41
+Router R2 Mgmt IP: 192.168.99.42
+CORE-SW1 IP: 192.168.99.11
+CORE-SW-BACKUP IP: 192.168.99.12
+ACC-SW (User side) IP: 192.168.99.21
+ACC-SW1 (Server side) IP: 192.168.99.22
+
+Both routers will DHCP router. one will redundant
+
+NAT Location & Type
+
+Fully OSPF except upstream of both router
+
+OUTSIDE: GE port that faces ISP (public/DHCP from ISP)
+INSIDE: GE port that faces Core (use the 172.17.0.0/29 transit
+e.g., 172.17.0.2 on the firewall, Core HSRP VIP 172.17.0.1)"]
+
+  N2["1. Requirement analysis and final IP addressing & VLAN plan
+2. Basic configuration of all Routers, Switches
+3. VLAN creation on VTP server
+4. Access port configuration for PCs, Servers, and Access Point
+5. Trunk port configuration between Core, Distribution Switches
+6. IP address assignment on Routers, Switch SVIs
+7. HSRP configuration on R1 and R2 (Virtual Gateway: 172.17.0.1/29)
+8. Internet/Cloud connectivity configuration on R1 and R2
+9. Inter-VLAN routing configuration on Core Switch
+10. Static routing or OSPF configuration between internal network and Cloud
+11. EtherChannel configuration
+12. Firewall and Redundant Firewall configuration (Inside / Outside / DMZ zones)
+13. NAT / PAT configuration for Internet access and public services
+14. Access Point (AP) configuration with VLAN mapping and security
+15. DHCP server configuration and DHCP relay (ip helper-address)
+16. DNS server installation and configuration on DC
+17. Primary Domain Controller (DC) configuration (AD DS installation)
+18. Additional Domain Controller (ADC) configuration and replication
+19. File Server and FSRM configuration for students data control
+20. WEB Server configuration and website hosting
+21. FTP Server configuration with user-based permissions
+22. MAIL Server configuration (SMTP, POP3/IMAP, mail accounts)
+23. DNS record creation (A, MX, CNAME for WEB and MAIL services)
+24. Client PC and Wi-Fi user testing (Domain, Web, FTP, Mail access)
+25. Security hardening using ACLs, Firewall rules, and Group Policies
+26. Monitoring, backup, and full network documentation"]
+
+  %% =========================
+  %% Core topology
+  %% =========================
+  subgraph Cloud1["Cloud1"]
+    C1((virbr0))
+  end
+
+  subgraph Cloud2["Cloud2"]
+    C2((virbr0))
+  end
+
+  R1["ATAR3050S (R1)
+g1/0 -> Cloud
+g0/0 -> Core
+172.17.0.2/29"]
+  R2["ATAR3050S (R2)
+g1/0 -> Cloud
+g2/0 -> Core
+172.17.0.3/29"]
+
+  HSRP["HSRP Logical Gateway
+172.17.0.1/29"]
+
+  CORE1["CORE-SW (VTP server)
+VLAN 99,100,150,170,200
+dpi.local
+pass: dpi"]
+  CORE2["CORE-SW-BACKUP (VTP server)
+VLAN 99,100,150,170,200
+dpi.local
+pass: dpi"]
+
+  %% =========================
+  %% Access layer
+  %% =========================
+  ACC1["ACC-SW
+(VTP client)"]
+  ACC2["ACC-SW1
+(VTP client)"]
+
+  %% =========================
+  %% Endpoints / VLAN blocks
+  %% =========================
+  subgraph Users["VLAN 100 IP 172.16.0.0/20"]
+    AP["AP (e0)"]
+    PC1["PC1 (e0)"]
+  end
+
+  subgraph Servers["VLAN 150 IP 192.168.0.0/29"]
+    DC["DC (e0)"]
+    ADC["ADC (e0)"]
+  end
+
+  subgraph DMZ["DMZ
+VLAN 200 IP 192.168.0.8/29"]
+    WEB["WEB (e0)"]
+    FTP["FTP (e0)"]
+    MAIL["MAIL (e0)"]
+  end
+
+  DNS["DNS (e0)
+VLAN 170 192.168.100.2/29"]
+
+  %% =========================
+  %% Links (with interface labels where shown)
+  %% =========================
+  C1 ---|g1/0| R1
+  C2 ---|g1/0| R2
+
+  R1 ---|g0/0| CORE1
+  R2 ---|g2/0| CORE2
+
+  CORE1 --- HSRP
+  CORE2 --- HSRP
+
+  CORE1 ===|EtherChannel / trunk| CORE2
+
+  CORE1 ---|downlink| ACC1
+  CORE2 ---|downlink| ACC2
+  ACC1 ===|trunk| ACC2
+
+  ACC1 --- AP
+  ACC1 --- PC1
+
+  ACC2 --- DC
+  ACC2 --- ADC
+  ACC2 --- WEB
+  ACC2 --- FTP
+  ACC2 --- MAIL
+  ACC2 --- DNS
+
+  %% =========================
+  %% Place the big text blocks on the sides (visual)
+  %% =========================
+  N1 -.-> CORE1
+  CORE2 -.-> N2
 ```
+</td>
+</tr>
+</table>
 
-### Part 2: Interface & VLAN Configuration
+```markdown
+# **FULL NETWORK CONFIGURATION README.md**
+> Topology + addressing + VLAN/VTP + trunks/EtherChannel + HSRP + OSPF + NAT/PAT + DHCP/DNS/AD/DC + DMZ services  
+> Built to match the diagram exactly (names highlighted everywhere).
 
+---
+
+## **1. Topology Overview**
+This lab contains:
+
+- **2 Edge Routers**: **R1 (ATAR3050S)**, **R2 (ATAR3050S1)** connected to **Cloud1/Cloud2** (ISP/DHCP on outside)
+- **2 Core Switches (L3)**: **CORE-SW1**, **CORE-SW-BACKUP**
+- **2 Access Switches (L2)**: **ACC-SW (User side)**, **ACC-SW1 (Server side)**
+- **Servers/Services**
+  - **DC** (Domain Controller)
+  - **ADC** (Additional Domain Controller)
+  - **DNS** server
+  - **DMZ servers**: **WEB**, **FTP**, **MAIL**
+- **Wireless & Users**
+  - **AP**
+  - **PC1**
+
+---
+
+## **2. VLAN Plan & IP Addressing (From Diagram)**
+### **VLAN 99 – Management**
+- Network: **192.168.99.0/24**
+- Gateway: **192.168.99.1**
+- **R1 mgmt**: **192.168.99.41**
+- **R2 mgmt**: **192.168.99.42**
+- **CORE-SW1**: **192.168.99.11**
+- **CORE-SW-BACKUP**: **192.168.99.12**
+- **ACC-SW (User side)**: **192.168.99.21**
+- **ACC-SW1 (Server side)**: **192.168.99.22**
+
+### **Transit / Core-Edge segment**
+- Network: **172.17.0.0/29**
+- **HSRP Virtual Gateway**: **172.17.0.1/29**
+- **R1 inside**: **172.17.0.2/29**
+- **R2 inside**: **172.17.0.3/29**
+
+### **VLAN 100 – Users / WiFi**
+- Network: **172.16.0.0/20**
+- Gateway (SVI): **172.16.0.1**
+
+### **VLAN 150 – Domain Controllers**
+- Network: **192.168.0.0/29**
+- Gateway (SVI): **192.168.0.1**
+- **DC**: **192.168.0.2**
+- **ADC**: **192.168.0.3**
+
+### **VLAN 170 – DNS**
+- Network: **192.168.100.0/29**  
+- Diagram note: **VLAN 170 192.168.100.2/29** (DNS host)
+- Gateway (SVI): **192.168.100.1**
+- **DNS**: **192.168.100.2**
+
+### **VLAN 200 – DMZ**
+- Network: **192.168.0.8/29**
+- Gateway (SVI): **192.168.0.9**
+- **WEB**: **192.168.0.10**
+- **FTP**: **192.168.0.11**
+- **MAIL**: **192.168.0.12**
+
+---
+
+## **3. VTP & VLAN Distribution**
+- VTP domain: **dpi.local**
+- VTP password: **dpi**
+- **CORE-SW1**: **VTP Server**
+- **CORE-SW-BACKUP**: **VTP Server**
+- **ACC-SW**: **VTP Client**
+- **ACC-SW1**: **VTP Client**
+- VLANs carried by VTP: **99,100,150,170,200**
+
+> Note: In real production, VTP is often avoided; but this README follows the diagram requirement.
+
+---
+
+## **4. Switching Architecture**
+### **Trunks**
+- Trunks between **CORE-SW1 ↔ CORE-SW-BACKUP**
+- Trunks between **Core ↔ Access**
+- Trunks carry: **VLAN 99,100,150,170,200**
+
+### **EtherChannel**
+- EtherChannel is used between **CORE-SW1 ↔ CORE-SW-BACKUP** (recommended LACP).
+
+---
+
+## **5. Routing Architecture**
+- **Inter-VLAN routing** on **CORE-SW1/CORE-SW-BACKUP** via SVIs.
+- **HSRP** for the **transit VLAN/interface 172.17.0.0/29** between **R1** and **R2**
+  - Virtual IP: **172.17.0.1**
+- **OSPF** internally (diagram: “Fully OSPF except upstream of both router”)
+  - OSPF runs between **R1/R2** and **Core** for internal networks.
+- Upstream (Cloud/ISP) uses **DHCP/public** on router outside interface.
+
+---
+
+## **6. NAT/PAT**
+Diagram text:
+- **OUTSIDE**: GE interface facing ISP (**public/DHCP from ISP**)
+- **INSIDE**: GE interface facing Core (**172.17.0.0/29** transit)
+
+Implementation:
+- NAT overload (PAT) for inside VLANs to Internet
+- Static NAT / Port-forward for public services in **DMZ (VLAN 200)** (WEB/FTP/MAIL)
+
+---
+
+## **7. Device Interface Map (As shown)**
+### **R1 (ATAR3050S)**
+- **g1/0** → **Cloud1** (outside, DHCP)
+- **g0/0** → **CORE-SW1** (inside transit: **172.17.0.2/29**)
+
+### **R2 (ATAR3050S1)**
+- **g1/0** → **Cloud2** (outside, DHCP)
+- **g2/0** → **CORE-SW-BACKUP** (inside transit: **172.17.0.3/29**)
+
+### **CORE-SW1**
+- **f0/0** uplink to **R1**
+- **f0/1, f1/1** to **CORE-SW-BACKUP** (EtherChannel/trunk)
+- **f1/0, f1/4, f1/2** downlinks to access (per diagram labels)
+- **f0/1** downlink to **ACC-SW** (trunk)
+
+### **CORE-SW-BACKUP**
+- **f0/1** uplink to **R2**
+- **f0/0, f1/3** to **CORE-SW1** (EtherChannel/trunk)
+- **f1/6, f1/8** to access
+- Multiple access ports toward servers/DMZ/DNS
+
+### **ACC-SW (User side)**
+- Uplink trunk to core
+- Access ports to **AP** and **PC1** (VLAN 100)
+
+### **ACC-SW1 (Server side)**
+- Uplink trunk to core
+- Access ports to **DC**, **ADC**, **WEB**, **FTP**, **MAIL**, **DNS** (VLANs 150/170/200)
+
+---
+
+## **8. FULL CONFIGURATION**
+> Below is a full baseline Cisco-style configuration set.  
+> Replace interface numbers if your simulator uses different naming, but keep **names/IPs/VLANs/HSRP/OSPF/NAT** as written.
+
+---
+
+# **8.1 CORE-SW1 Configuration (VTP SERVER + L3 + SVIs)**
 ```cisco
-! Management Interface (VLAN 99)
-interface Gi0/0
- ip address 192.168.99.11 255.255.255.0
- description Management Interface
- no shutdown
-exit
+hostname CORE-SW1
+no ip domain-lookup
+ip domain-name dpi.local
 
-! Create VLANs
+username admin privilege 15 secret dpi
+enable secret dpi
+
+vtp domain dpi.local
+vtp password dpi
+vtp mode server
+vtp version 2
+
+spanning-tree mode rapid-pvst
+spanning-tree vlan 99,100,150,170,200 root primary
+
+!
+! VLANs (created on VTP server)
 vlan 99
- name Management
-exit
-
+ name VLAN99-MGMT
 vlan 100
- name AccessPoint_Users
-exit
-
+ name VLAN100-USERS
 vlan 150
- name Internal_Network
-exit
-
+ name VLAN150-DC
 vlan 170
- name DNS_Services
-exit
-
+ name VLAN170-DNS
 vlan 200
- name Servers
-exit
+ name VLAN200-DMZ
+!
 
-! SVI Interfaces
+ip routing
+
+!
+! SVI Gateways
 interface vlan 99
- ip address 192.168.99.11 255.255.255.0
- description Management VLAN
+ description **MGMT-GW**
+ ip address 192.168.99.1 255.255.255.0
  no shutdown
-exit
 
 interface vlan 100
+ description **USERS-GW**
  ip address 172.16.0.1 255.255.240.0
- description Access VLAN (AP & Users)
  no shutdown
-exit
 
 interface vlan 150
- ip address 192.168.150.1 255.255.255.248
- description Internal VLAN
+ description **DC-GW**
+ ip address 192.168.0.1 255.255.255.248
  no shutdown
-exit
 
 interface vlan 170
+ description **DNS-GW**
  ip address 192.168.100.1 255.255.255.248
- description Services VLAN (DNS)
  no shutdown
-exit
 
 interface vlan 200
- ip address 192.168.0.1 255.255.255.248
- description Servers VLAN
+ description **DMZ-GW**
+ ip address 192.168.0.9 255.255.255.248
  no shutdown
-exit
+
+!
+! Management address (device IP in VLAN 99)
+interface vlan 99
+ ip address 192.168.99.11 255.255.255.0
+!
+
+!
+! Trunk/EtherChannel to CORE-SW-BACKUP (example: f0/1 + f1/1)
+interface range f0/1, f1/1
+ description **TO-CORE-SW-BACKUP-LACP**
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 99,100,150,170,200
+ channel-group 1 mode active
+
+interface port-channel 1
+ description **CORE-INTERLINK**
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 99,100,150,170,200
+
+!
+! Trunk to ACC-SW (example: f1/0)
+interface f1/0
+ description **TO-ACC-SW-USER**
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 99,100,150,170,200
+
+!
+! Trunk to ACC-SW1 (example: f1/2)
+interface f1/2
+ description **TO-ACC-SW1-SERVER**
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 99,100,150,170,200
+
+!
+! Transit to R1 (routed port) - if supported
+interface f0/0
+ description **TO-R1-TRANSIT**
+ no switchport
+ ip address 172.17.0.4 255.255.255.248
+ no shutdown
+
+!
+router ospf 10
+ router-id 1.1.1.1
+ passive-interface default
+ no passive-interface f0/0
+ network 172.16.0.0 0.0.15.255 area 0
+ network 192.168.0.0 0.0.0.255 area 0
+ network 192.168.99.0 0.0.0.255 area 0
+ network 192.168.100.0 0.0.0.7 area 0
+ network 172.17.0.0 0.0.0.7 area 0
+!
+
+line vty 0 4
+ login local
+ transport input ssh
+!
+crypto key generate rsa modulus 2048
+ip ssh version 2
 ```
 
-### Part 3: Trunk Port Configuration (To Switches)
+> Note: Some platforms do not allow two IPs on the same SVI; if so, keep **192.168.99.11** on VLAN99 and ensure the gateway **192.168.99.1** is provided by HSRP on cores instead. The diagram states gateway **192.168.99.1**; the clean design is HSRP on VLAN99 at the core. See the optional section **8.1.1** below.
 
+---
+
+## **8.1.1 Optional (Recommended) HSRP for VLAN 99 at Core**
+If you want **gateway 192.168.99.1** without conflict:
+
+- **CORE-SW1 VLAN99** = 192.168.99.11
+- **CORE-SW-BACKUP VLAN99** = 192.168.99.12
+- **HSRP VIP** = 192.168.99.1
+
+(HSRP config shown under **CORE-SW-BACKUP** too.)
+
+---
+
+# **8.2 CORE-SW-BACKUP Configuration (VTP SERVER + L3 + SVIs)**
 ```cisco
-! Trunk to CORE-SW
-interface Gi0/1
- description Trunk-to-CORE-SW
- switchport trunk encapsulation dot1q
- switchport mode trunk
- switchport trunk allowed vlan 99,100,150,170,200
- switchport trunk native vlan 99
+hostname CORE-SW-BACKUP
+no ip domain-lookup
+ip domain-name dpi.local
+
+username admin privilege 15 secret dpi
+enable secret dpi
+
+vtp domain dpi.local
+vtp password dpi
+vtp mode server
+vtp version 2
+
+spanning-tree mode rapid-pvst
+spanning-tree vlan 99,100,150,170,200 root secondary
+
+ip routing
+
+!
+! Device management IP on VLAN99
+interface vlan 99
+ description **MGMT**
+ ip address 192.168.99.12 255.255.255.0
  no shutdown
-exit
 
-! Trunk to CORESW-BACKUP
-interface Gi0/2
- description Trunk-to-CORESW-BACKUP
- switchport trunk encapsulation dot1q
- switchport mode trunk
- switchport trunk allowed vlan 99,100,150,170,200
- switchport trunk native vlan 99
- no shutdown
-exit
+!
+! (Optional) HSRP for VLAN99 gateway 192.168.99.1
+standby version 2
+interface vlan 99
+ standby 99 ip 192.168.99.1
+ standby 99 priority 110
+ standby 99 preempt
 
-! Trunk to ATR3050S (if daisy-chained)
-interface Gi0/3
- description Trunk-to-ATR3050S
- switchport trunk encapsulation dot1q
- switchport mode trunk
- switchport trunk allowed vlan 99,100,150,170,200
- switchport trunk native vlan 99
- no shutdown
-exit
-```
-
-### Part 4: HSRP Configuration (High Availability)
-
-```cisco
-! HSRP for VLAN 150 (Primary on ATAR3050S1)
-interface vlan 150
- ip address 192.168.150.2 255.255.255.248
- standby version 2
- standby 1 ip 192.168.150.1
- standby 1 priority 110
- standby 1 preempt
- standby 1 timers 3 10
-exit
-
-! HSRP for VLAN 100
+!
+! SVIs (same gateways if not using HSRP per-VLAN; or configure HSRP per VLAN)
 interface vlan 100
  ip address 172.16.0.2 255.255.240.0
- standby version 2
- standby 2 ip 172.16.0.1
- standby 2 priority 110
- standby 2 preempt
- standby 2 timers 3 10
-exit
-
-! HSRP for VLAN 200
-interface vlan 200
- ip address 192.168.0.2 255.255.255.248
- standby version 2
- standby 3 ip 192.168.0.1
- standby 3 priority 110
- standby 3 preempt
- standby 3 timers 3 10
-exit
-
-! HSRP for VLAN 170
+ no shutdown
+interface vlan 150
+ ip address 192.168.0.4 255.255.255.248
+ no shutdown
 interface vlan 170
- ip address 192.168.100.2 255.255.255.248
- standby version 2
- standby 4 ip 192.168.100.1
- standby 4 priority 110
- standby 4 preempt
- standby 4 timers 3 10
-exit
-```
+ ip address 192.168.100.4 255.255.255.248
+ no shutdown
+interface vlan 200
+ ip address 192.168.0.13 255.255.255.248
+ no shutdown
 
-### Part 5: VTP Configuration
+!
+! EtherChannel to CORE-SW1 (example f0/0 + f1/3)
+interface range f0/0, f1/3
+ description **TO-CORE-SW1-LACP**
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 99,100,150,170,200
+ channel-group 1 mode active
 
-```cisco
-vtp mode server
-vtp domain dpi.local
-vtp password dpi123
-vtp version 2
-vtp pruning enable
-exit
-```
+interface port-channel 1
+ description **CORE-INTERLINK**
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 99,100,150,170,200
 
-### Part 6: Routing Protocol (OSPF)
+!
+! Trunks to access
+interface f1/6
+ description **TO-ACC-SW**
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 99,100,150,170,200
 
-```cisco
-router ospf 1
- router-id 192.168.99.11
- auto-cost reference-bandwidth 10000
- 
- network 192.168.99.0 0.0.0.255 area 0
+interface f1/8
+ description **TO-ACC-SW1**
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 99,100,150,170,200
+
+!
+! Transit to R2 (routed port)
+interface f0/1
+ description **TO-R2-TRANSIT**
+ no switchport
+ ip address 172.17.0.5 255.255.255.248
+ no shutdown
+
+router ospf 10
+ router-id 2.2.2.2
+ passive-interface default
+ no passive-interface f0/1
  network 172.16.0.0 0.0.15.255 area 0
- network 192.168.150.0 0.0.0.7 area 0
+ network 192.168.0.0 0.0.0.255 area 0
+ network 192.168.99.0 0.0.0.255 area 0
  network 192.168.100.0 0.0.0.7 area 0
- network 192.168.0.0 0.0.0.7 area 0
- 
- passive-interface vlan 100
- passive-interface vlan 200
- passive-interface vlan 170
-exit
+ network 172.17.0.0 0.0.0.7 area 0
 ```
 
-### Part 7: Port Security & Access Control
+---
 
+# **8.3 ACC-SW Configuration (VTP CLIENT, USER ACCESS)**
 ```cisco
-! Port Security on User Access
-interface vlan 100
- switchport port-security
- switchport port-security maximum 5
- switchport port-security violation restrict
- switchport port-security mac-address sticky
-exit
+hostname ACC-SW
+no ip domain-lookup
+ip domain-name dpi.local
 
-! Port Security on Server VLAN
-interface vlan 200
- switchport port-security
- switchport port-security maximum 3
- switchport port-security violation shutdown
-exit
+username admin privilege 15 secret dpi
+enable secret dpi
 
-! Port Security on Mgmt
+vtp domain dpi.local
+vtp password dpi
+vtp mode client
+vtp version 2
+
+spanning-tree mode rapid-pvst
+
+!
 interface vlan 99
- switchport port-security
- switchport port-security maximum 2
- switchport port-security violation shutdown
- switchport port-security mac-address sticky
-exit
+ description **MGMT**
+ ip address 192.168.99.21 255.255.255.0
+ no shutdown
+ip default-gateway 192.168.99.1
+
+!
+! Uplink trunk to core (example f0/0)
+interface f0/0
+ description **UPLINK-TO-CORE**
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 99,100,150,170,200
+
+!
+! Access ports
+interface f0/1
+ description **TO-AP**
+ switchport mode access
+ switchport access vlan 100
+ spanning-tree portfast
+
+interface f1/0
+ description **TO-PC1**
+ switchport mode access
+ switchport access vlan 100
+ spanning-tree portfast
 ```
 
-### Part 8: ACL Configuration (Access Control Lists)
+---
 
+# **8.4 ACC-SW1 Configuration (VTP CLIENT, SERVER ACCESS)**
 ```cisco
-! Standard ACL for Management
-ip access-list standard MGMT_ACCESS
- permit 192.168.99.0 0.0.0.255
- permit 192.168.150.0 0.0.0.7
- deny any
-exit
+hostname ACC-SW1
+no ip domain-lookup
+ip domain-name dpi.local
 
-! Extended ACL - Inter-VLAN Communication
-ip access-list extended INTER_VLAN_POLICY
- ! Allow Users to DNS
- permit ip 172.16.0.0 0.0.15.255 192.168.100.0 0.0.0.7
- ! Allow Users to Servers
- permit ip 172.16.0.0 0.0.15.255 192.168.0.0 0.0.0.7
- ! Allow Internal to Servers
- permit ip 192.168.150.0 0.0.0.7 192.168.0.0 0.0.0.7
- ! Allow Internal to DNS
- permit ip 192.168.150.0 0.0.0.7 192.168.100.0 0.0.0.7
- ! Allow Management to All
- permit ip 192.168.99.0 0.0.0.255 any
- ! Deny Everything Else
- deny ip any any
-exit
+username admin privilege 15 secret dpi
+enable secret dpi
 
-! Apply ACL to VTY (SSH/Telnet)
-line vty 0 4
- access-class MGMT_ACCESS in
- transport input ssh
-exit
+vtp domain dpi.local
+vtp password dpi
+vtp mode client
+vtp version 2
 
-! Apply ACL to VLANs
-interface vlan 100
- ip access-group INTER_VLAN_POLICY in
-exit
+spanning-tree mode rapid-pvst
 
-interface vlan 150
- ip access-group INTER_VLAN_POLICY in
-exit
-
-interface vlan 200
- ip access-group INTER_VLAN_POLICY in
-exit
-
-interface vlan 170
- ip access-group INTER_VLAN_POLICY in
-exit
-```
-
-### Part 9: NAT/PAT Configuration (For Cloud Connectivity)
-
-```cisco
-! Define Inside Interface
-ip nat inside source list 1 interface vlan 99 overload
-
-! Access List for NAT
-ip access-list standard NAT_INSIDE
- permit 172.16.0.0 0.0.15.255
- permit 192.168.150.0 0.0.0.7
- permit 192.168.100.0 0.0.0.7
- permit 192.168.0.0 0.0.0.7
-exit
-
-! Mark Interfaces
 interface vlan 99
+ description **MGMT**
+ ip address 192.168.99.22 255.255.255.0
+ no shutdown
+ip default-gateway 192.168.99.1
+
+!
+interface f0/0
+ description **UPLINK-TO-CORE**
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 99,100,150,170,200
+
+!
+! Server access ports (examples; map to your actual cabling)
+interface f0/1
+ description **TO-DC**
+ switchport mode access
+ switchport access vlan 150
+ spanning-tree portfast
+
+interface f0/2
+ description **TO-ADC**
+ switchport mode access
+ switchport access vlan 150
+ spanning-tree portfast
+
+interface f0/3
+ description **TO-DNS**
+ switchport mode access
+ switchport access vlan 170
+ spanning-tree portfast
+
+interface f0/4
+ description **TO-WEB**
+ switchport mode access
+ switchport access vlan 200
+ spanning-tree portfast
+
+interface f0/5
+ description **TO-FTP**
+ switchport mode access
+ switchport access vlan 200
+ spanning-tree portfast
+
+interface f0/6
+ description **TO-MAIL**
+ switchport mode access
+ switchport access vlan 200
+ spanning-tree portfast
+```
+
+---
+
+# **8.5 R1 Configuration (ATAR3050S) – HSRP + OSPF + NAT**
+```cisco
+hostname R1-ATAR3050S
+no ip domain-lookup
+
+!
+! Outside to ISP/Cloud1
+interface g1/0
+ description **OUTSIDE-TO-CLOUD1**
+ ip address dhcp
  ip nat outside
-exit
+ no shutdown
 
-interface vlan 100
+!
+! Inside to Core transit
+interface g0/0
+ description **INSIDE-TO-CORE-TRANSIT**
+ ip address 172.17.0.2 255.255.255.248
  ip nat inside
-exit
+ standby version 2
+ standby 1 ip 172.17.0.1
+ standby 1 priority 110
+ standby 1 preempt
+ no shutdown
 
-interface vlan 150
- ip nat inside
-exit
+!
+! OSPF internal
+router ospf 10
+ router-id 10.10.10.1
+ network 172.17.0.0 0.0.0.7 area 0
 
-interface vlan 170
- ip nat inside
-exit
+!
+! Default route toward ISP learned by DHCP (common) or set static:
+! ip route 0.0.0.0 0.0.0.0 dhcp
 
-interface vlan 200
- ip nat inside
-exit
+!
+! NAT Overload for internal networks
+access-list 10 permit 172.16.0.0 0.0.15.255
+access-list 10 permit 192.168.0.0 0.0.0.255
+access-list 10 permit 192.168.99.0 0.0.0.255
+access-list 10 permit 192.168.100.0 0.0.0.7
+
+ip nat inside source list 10 interface g1/0 overload
+
+!
+! Example port-forwards to DMZ (adjust public ports as desired)
+! HTTP -> WEB (192.168.0.10)
+ip nat inside source static tcp 192.168.0.10 80 interface g1/0 80
+! FTP -> FTP (192.168.0.11)
+ip nat inside source static tcp 192.168.0.11 21 interface g1/0 21
+! SMTP -> MAIL (192.168.0.12)
+ip nat inside source static tcp 192.168.0.12 25 interface g1/0 25
 ```
 
-### Part 10: DHCP Configuration (For Dynamic IPs)
+---
 
+# **8.6 R2 Configuration (ATAR3050S1) – HSRP + OSPF + NAT**
 ```cisco
-! Exclude Management IPs from DHCP
-ip dhcp excluded-address 192.168.99.1 192.168.99.50
-ip dhcp excluded-address 172.16.0.1 172.16.0.100
-ip dhcp excluded-address 192.168.150.1 192.168.150.7
-ip dhcp excluded-address 192.168.100.1 192.168.100.7
-ip dhcp excluded-address 192.168.0.1 192.168.0.7
+hostname R2-ATAR3050S1
+no ip domain-lookup
 
-! DHCP Pool for Access VLAN (AP & Users)
-ip dhcp pool VLAN100_POOL
+interface g1/0
+ description **OUTSIDE-TO-CLOUD2**
+ ip address dhcp
+ ip nat outside
+ no shutdown
+
+interface g2/0
+ description **INSIDE-TO-CORE-TRANSIT**
+ ip address 172.17.0.3 255.255.255.248
+ ip nat inside
+ standby version 2
+ standby 1 ip 172.17.0.1
+ standby 1 priority 100
+ standby 1 preempt
+ no shutdown
+
+router ospf 10
+ router-id 10.10.10.2
+ network 172.17.0.0 0.0.0.7 area 0
+
+access-list 10 permit 172.16.0.0 0.0.15.255
+access-list 10 permit 192.168.0.0 0.0.0.255
+access-list 10 permit 192.168.99.0 0.0.0.255
+access-list 10 permit 192.168.100.0 0.0.0.7
+
+ip nat inside source list 10 interface g1/0 overload
+```
+
+---
+
+## **9. DHCP Configuration**
+Diagram says: “Both router will dhcp router. one will redundant”.
+
+### **Recommended design**
+- Put DHCP on **R1** for VLAN100/150/170/200 (scopes)
+- Put DHCP on **R2** as backup (identical pools, but keep disabled unless failover is manual)
+
+### **R1 DHCP**
+```cisco
+service dhcp
+
+ip dhcp excluded-address 172.16.0.1 172.16.0.50
+ip dhcp excluded-address 192.168.0.1 192.168.0.4
+ip dhcp excluded-address 192.168.0.9 192.168.0.13
+ip dhcp excluded-address 192.168.100.1 192.168.100.2
+ip dhcp excluded-address 192.168.99.1 192.168.99.50
+
+ip dhcp pool VLAN100-USERS
  network 172.16.0.0 255.255.240.0
  default-router 172.16.0.1
  dns-server 192.168.100.2
  domain-name dpi.local
- lease 1 0
-exit
 
-! DHCP Pool for Internal VLAN
-ip dhcp pool VLAN150_POOL
- network 192.168.150.0 255.255.255.248
- default-router 192.168.150.1
- dns-server 192.168.100.2
- domain-name dpi.local
- lease 1 0
-exit
-
-! DHCP Pool for Server VLAN
-ip dhcp pool VLAN200_POOL
+ip dhcp pool VLAN150-DC
  network 192.168.0.0 255.255.255.248
  default-router 192.168.0.1
  dns-server 192.168.100.2
  domain-name dpi.local
- lease 1 0
-exit
 
-! DHCP Pool for Services VLAN (DNS)
-ip dhcp pool VLAN170_POOL
+ip dhcp pool VLAN170-DNS
  network 192.168.100.0 255.255.255.248
  default-router 192.168.100.1
  dns-server 192.168.100.2
  domain-name dpi.local
- lease 1 0
-exit
+
+ip dhcp pool VLAN200-DMZ
+ network 192.168.0.8 255.255.255.248
+ default-router 192.168.0.9
+ dns-server 192.168.100.2
+ domain-name dpi.local
 ```
 
-### Part 11: VPN/IPSec Configuration (For Cloud1 & Cloud2)
-
-```cisco
-! IKEv2 Phase 1 - Encryption
-crypto ikev2 proposal CLOUD_PROPOSAL
- encryption aes-cbc-256
- integrity sha256
- dh-group 14
-exit
-
-! IKEv2 Phase 1 - Policy
-crypto ikev2 policy CLOUD_POLICY
- proposal CLOUD_PROPOSAL
-exit
-
-! IKEv2 Keying
-crypto ikev2 keyring CLOUD_KEYRING
- peer 0.0.0.0 0.0.0.0
-  pre-shared-key cisco123VPN
-exit
-
-! IKEv2 Profile
-crypto ikev2 profile CLOUD_PROFILE
- match identity remote address 0.0.0.0
- authentication remote pre-share
- authentication local pre-share
- keyring local CLOUD_KEYRING
- lifetime 28800
- dpd 10 3 on-demand
-exit
-
-! IPSec Phase 2 - Encryption
-crypto ipsec transform-set CLOUD_TRANSFORM esp-aes 256 esp-sha-hmac
- mode tunnel
-exit
-
-! IPSec Policy
-crypto ipsec policy CLOUD_IPSEC 1
- protocol esp
- authentication hmac-sha-256
- encryption aes 256
- lifetime seconds 3600
-exit
-
-! Static Routes for VPN
-ip route 0.0.0.0 0.0.0.0 192.168.99.1
-
-! Tunnel Interface to Cloud1
-interface Tunnel 1
- ip address 10.0.0.1 255.255.255.0
- ip mtu 1400
- ip tcp adjust-mss 1360
- tunnel source 192.168.99.11
- tunnel destination CLOUD1_PUBLIC_IP
- tunnel mode ipsec ipv4
- tunnel protection ipsec profile CLOUD_PROFILE
-exit
-
-! Tunnel Interface to Cloud2
-interface Tunnel 2
- ip address 10.0.1.1 255.255.255.0
- ip mtu 1400
- ip tcp adjust-mss 1360
- tunnel source 192.168.99.11
- tunnel destination CLOUD2_PUBLIC_IP
- tunnel mode ipsec ipv4
- tunnel protection ipsec profile CLOUD_PROFILE
-exit
-
-! Routes via Tunnels
-ip route 10.10.0.0 255.255.0.0 10.0.0.1
-ip route 10.20.0.0 255.255.0.0 10.0.1.1
-```
-
-### Part 12: DNS & NTP Configuration
-
-```cisco
-! DNS Configuration
-ip domain-name dpi.local
-ip name-server 192.168.100.2
-
-! NTP Configuration
-ntp server 192.168.100.2 prefer
-ntp source 192.168.99.11
-clock timezone UTC 0
-```
-
-### Part 13: Logging & Monitoring
-
-```cisco
-! Syslog Configuration
-logging host 192.168.0.4
-logging trap informational
-logging buffer 8192
-
-! SNMP Configuration (Optional)
-snmp-server community dpi123 RO
-snmp-server community dpi-write RW
-snmp-server location DATACENTER
-snmp-server contact admin@dpi.local
-
-! Console Logging
-logging console warnings
-logging synchronous level all
-```
-
-### Part 14: Save & Verification
-
-```cisco
-end
-write memory
-copy running-config startup-config
-```
+> If DHCP is instead hosted on **DC**, then configure `ip helper-address 192.168.0.2` on each SVI on the core switches.
 
 ---
 
-## Verification Commands
+## **10. Server Configurations**
+### **DC (VLAN 150)**
+- Hostname: **DC**
+- IP: **192.168.0.2/29**
+- GW: **192.168.0.1**
+- DNS: **192.168.100.2** (or itself after DNS is installed)
 
-Verify the configuration with these commands:
+Roles:
+- **AD DS**
+- **DNS** (optional if you want DNS on DC, but diagram shows separate **DNS** server)
 
-```cisco
-show vlan brief
-show interfaces trunk
-show standby brief
-show vtp status
-show access-lists
-show ip route
-show ip nat statistics
-show ip dhcp binding
-show crypto ipsec sa
-show crypto session brief
-show running-config
-ping 192.168.100.2
-ping 192.168.0.2
+### **ADC (VLAN 150)**
+- Hostname: **ADC**
+- IP: **192.168.0.3/29**
+- GW: **192.168.0.1**
+- DNS: **192.168.100.2**
+Roles:
+- Additional Domain Controller
+- AD-integrated replication
+
+### **DNS (VLAN 170)**
+- Hostname: **DNS**
+- IP: **192.168.100.2/29**
+- GW: **192.168.100.1**
+Zones/Records:
+- Zone: **dpi.local**
+- A records: **dc**, **adc**, **dns**, **web**, **ftp**, **mail**
+- MX record: **mail.dpi.local**
+
+### **DMZ Servers (VLAN 200)**
+- **WEB**: **192.168.0.10/29**, GW **192.168.0.9**
+- **FTP**: **192.168.0.11/29**, GW **192.168.0.9**
+- **MAIL**: **192.168.0.12/29**, GW **192.168.0.9**
+
+Services:
+- WEB: HTTP/HTTPS site hosting
+- FTP: user-based FTP permissions
+- MAIL: SMTP/IMAP/POP3 as needed
+
+---
+
+## **11. Wireless & User Hosts**
+### **AP (VLAN 100)**
+- Management IP: DHCP from **VLAN100**
+- SSID mapped to **VLAN 100**
+- WPA2/WPA3 recommended, or lab-open
+
+### **PC1 (VLAN 100)**
+- DHCP client
+- Must resolve **dpi.local** via **DNS (192.168.100.2)**
+
+---
+
+## **12. Validation Checklist**
+Run these tests:
+
+### **Switching**
+- `show vtp status` on **CORE-SW1**, **CORE-SW-BACKUP**, **ACC-SW**, **ACC-SW1**
+- `show interfaces trunk`
+- `show etherchannel summary`
+- `show spanning-tree vlan 99,100,150,170,200`
+
+### **Routing/Redundancy**
+- `show standby brief` on **R1** and **R2**
+- `show ip ospf neighbor` on routers and cores
+- Ping:
+  - **PC1 → 172.16.0.1**
+  - **PC1 → 192.168.100.2**
+  - **PC1 → 192.168.0.2**
+  - **PC1 → Internet**
+
+### **NAT**
+- `show ip nat translations`
+- From **PC1** browse to router public IP to reach **WEB** (port-forward)
+
+---
+
+## ** 📝 Author **
+
+<div align="center">
+
+**Shuvo**
+
+*Enterprise Networking & Server Infrastructure Project*
+
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/devshuvocse/)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/ahashanul-haque-shuvo)
+
+---
+
+<sub>📅 Last Updated: Dec 2025 | 📖 Documentation v1.4</sub>
+
+</div>
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+---
 ```
-
----
-
-## Key Configuration Notes
-
-- **HSRP Virtual Gateway (VLAN 150):** 192.168.150.1 with secondary gateway on R2 for redundancy
-- **Primary HSRP Priority:** 110 (adjust on backup router to 100 or lower)
-- **DNS Server:** 192.168.100.2 (VLAN 170)
-- **Management Access:** Via VLAN 99 (192.168.99.11)
-- **VPN Pre-Shared Key:** `cisco123VPN` (change in production)
-- **VTP Domain:** `dpi.local` with VTP version 2 enabled
-
----
-
-## Implementation Tips
-
-1. **Test configuration step-by-step** to identify any issues early
-2. **Verify VLAN connectivity** before implementing ACLs
-3. **Update tunnel destinations** with actual Cloud public IP addresses
-4. **Change default credentials** before production deployment
-5. **Enable logging** for troubleshooting and monitoring
-6. **Test HSRP failover** to ensure high availability works correctly
-7. **Document all customizations** for future reference
-
----
-
-## License
-
-This configuration guide is provided as-is for reference purposes. Modify as needed for your specific network requirements.
