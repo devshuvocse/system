@@ -16,7 +16,6 @@
 [Troubleshooting](#-troubleshooting-guide)
 
 ---
-```
 
 </div>
 
