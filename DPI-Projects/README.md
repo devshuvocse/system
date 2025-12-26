@@ -2,18 +2,20 @@
 
 <div align="center">
 
-![Network Infrastructure](https://img.shields.io/badge/Network-Infrastructure-blue?style=for-the-badge&logo=cisco)
-![Status](https://img.shields.io/badge/Status-Production%20Ready-success?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
-![Cisco](https://img.shields.io/badge/Cisco-IOS-1BA0D7?style=for-the-badge&logo=cisco)
-![Windows Server](https://img.shields.io/badge/Windows-Server-0078D6?style=for-the-badge&logo=windows)
+![Network Infrastructure](https://img.shields.io/badge/Network-Infrastructure-CORE%20%7C%20ACCESS%20%7C%20DMZ-blue?style=for-the-badge&logo=cisco)
+![Redundancy](https://img.shields.io/badge/Redundancy-HSRP%20%7C%20EtherChannel-success?style=for-the-badge)
+![Routing](https://img.shields.io/badge/Routing-OSPF-1BA0D7?style=for-the-badge&logo=cisco)
+![Segmentation](https://img.shields.io/badge/VLANs-99%20%7C%20100%20%7C%20150%20%7C%20170%20%7C%20200-purple?style=for-the-badge)
+![Services](https://img.shields.io/badge/Services-AD%20DS%20%7C%20DNS%20%7C%20WEB%20%7C%20FTP%20%7C%20MAIL-yellow?style=for-the-badge&logo=windows)
 
-**A comprehensive enterprise-grade network architecture featuring redundancy, security, and scalability**
+**Enterprise lab topology with dual-edge connectivity, redundant core, VLAN segmentation, DMZ services, and centralized identity/DNS**
 
-[Overview](#-network-topology-overview) •
-[Configuration](#-configuration-guide) •
-[Deployment](#-deployment-checklist) •
-[Troubleshooting](#-troubleshooting-guide)
+[Topology](#-topology-overview) •
+[IP%20Plan](#-ip-addressing--vlan-plan) •
+[Switching](#-switching--vtp) •
+[Routing%20%26%20NAT](#-routing-hsrp-ospf--nat) •
+[Servers](#-server--service-setup) •
+[Validation](#-verification--troubleshooting)
 
 ---
 
